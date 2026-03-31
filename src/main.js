@@ -139,33 +139,25 @@ loader.load('./models/16.glb', (gltf) => {
     const floorCt = new THREE.Vector3(); fb.getCenter(floorCt);
     console.log('✓ floor y=', floorY.toFixed(3), 'sz=', floorSz.x.toFixed(2), floorSz.z.toFixed(2));
 
-    // Long axis = row direction, short axis = depth from wall
-    const alongZ  = floorSz.z >= floorSz.x;
-    const rowLen  = alongZ ? floorSz.z : floorSz.x;
-    const rowDepth = alongZ ? floorSz.x : floorSz.z;
-
+    // Force Z axis — cabinets run along Z, depth from wall goes along X
     const NUM_CABS = 6;
-    const cabW = rowLen   / NUM_CABS;   // width per cabinet along row
-    const cabH = wSz.y    * 0.42;       // 42% of room height
-    const cabD = rowDepth * 0.28;       // 28% of floor depth (against wall)
+    const cabW = floorSz.z / NUM_CABS;   // each cabinet width along Z
+    const cabH = wSz.y    * 0.28;        // 28% of room height (shorter)
+    const cabD = floorSz.x * 0.28;       // 28% of floor X depth (against wall)
 
-    const startAlong = (alongZ ? fb.min.z : fb.min.x) + cabW / 2;
-    const wallPos    = (alongZ ? fb.min.x : fb.min.z) + cabD / 2;
+    const startZ  = fb.min.z + cabW / 2;
+    const wallX   = fb.min.x + cabD / 2;
 
     for (let i = 0; i < NUM_CABS; i++) {
-      const cab = makeEmptyCabinet(
-        alongZ ? cabD : cabW,
-        cabH,
-        alongZ ? cabW : cabD
-      );
+      const cab = makeEmptyCabinet(cabD, cabH, cabW);
       cab.position.set(
-        alongZ ? wallPos              : startAlong + i * cabW,
+        wallX,
         floorY + cabH / 2,
-        alongZ ? startAlong + i * cabW : wallPos
+        startZ + i * cabW
       );
       scene.add(cab);
     }
-    console.log(`✓ ${NUM_CABS} cabinets placed (alongZ=${alongZ})`);
+    console.log(`✓ ${NUM_CABS} cabinets placed along Z`);
   } else {
     console.warn('⚠ "floor" mesh not found');
   }
