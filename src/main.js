@@ -76,19 +76,13 @@ spot.shadow.camera.bottom = -20;
 scene.add(spot);
 
 // ── Empty cabinet factory (product_builder: use-cabinet-builder.js) ───────────
-// HIGH cabinet: 24"w × 30"h × 29.8"d  |  1 inch = 0.0254 m
-const IN = 0.0254;
-const CAB_W = 24 * IN;   // 0.6096 m
-const CAB_H = 30 * IN;   // 0.762  m
-const CAB_D = 29.8 * IN; // 0.7569 m
-
-function makeEmptyCabinet() {
-  const geo = new THREE.BoxGeometry(CAB_W, CAB_H, CAB_D);
+// Dims passed at runtime from floor bbox (scale-independent)
+function makeEmptyCabinet(w, h, d) {
+  const geo = new THREE.BoxGeometry(w, h, d);
   const mat = new THREE.MeshStandardMaterial({
     color: 0xb8b8b8,
     metalness: 1,
     roughness: 0.16,
-    // scene.environment applies automatically to all MeshStandardMaterial
     emissive: new THREE.Color('white'),
     emissiveIntensity: 0,
   });
@@ -139,31 +133,39 @@ loader.load('./models/16.glb', (gltf) => {
   let floorY = wb.min.y; // fallback
 
   if (floorMesh) {
-    const fb = new THREE.Box3().setFromObject(floorMesh);
-    floorY = fb.max.y;
-    console.log('✓ floor found, surface y =', floorY.toFixed(3));
+    const fb    = new THREE.Box3().setFromObject(floorMesh);
+    floorY      = fb.max.y;
+    const floorSz = new THREE.Vector3(); fb.getSize(floorSz);
+    const floorCt = new THREE.Vector3(); fb.getCenter(floorCt);
+    console.log('✓ floor y=', floorY.toFixed(3), 'sz=', floorSz.x.toFixed(2), floorSz.z.toFixed(2));
 
-    // Interior bounds from floor mesh
-    const fb2 = new THREE.Box3().setFromObject(floorMesh);
-    const floorSz = new THREE.Vector3(); fb2.getSize(floorSz);
-    const floorCt = new THREE.Vector3(); fb2.getCenter(floorCt);
+    // Long axis = row direction, short axis = depth from wall
+    const alongZ  = floorSz.z >= floorSz.x;
+    const rowLen  = alongZ ? floorSz.z : floorSz.x;
+    const rowDepth = alongZ ? floorSz.x : floorSz.z;
 
-    // Row of cabinets along the back wall (min.z of floor)
-    // Cabinets face toward the front (depth along Z)
-    const numCabs = Math.max(1, Math.floor(floorSz.x / CAB_W));
-    const totalW  = numCabs * CAB_W;
-    const startX  = floorCt.x - totalW / 2 + CAB_W / 2;
+    const NUM_CABS = 6;
+    const cabW = rowLen   / NUM_CABS;   // width per cabinet along row
+    const cabH = wSz.y    * 0.42;       // 42% of room height
+    const cabD = rowDepth * 0.28;       // 28% of floor depth (against wall)
 
-    for (let i = 0; i < numCabs; i++) {
-      const cab = makeEmptyCabinet();
+    const startAlong = (alongZ ? fb.min.z : fb.min.x) + cabW / 2;
+    const wallPos    = (alongZ ? fb.min.x : fb.min.z) + cabD / 2;
+
+    for (let i = 0; i < NUM_CABS; i++) {
+      const cab = makeEmptyCabinet(
+        alongZ ? cabD : cabW,
+        cabH,
+        alongZ ? cabW : cabD
+      );
       cab.position.set(
-        startX + i * CAB_W,          // evenly spaced along X
-        floorY + CAB_H / 2,          // sitting on floor surface
-        fb2.min.z + CAB_D / 2        // flush against back wall
+        alongZ ? wallPos              : startAlong + i * cabW,
+        floorY + cabH / 2,
+        alongZ ? startAlong + i * cabW : wallPos
       );
       scene.add(cab);
     }
-    console.log(`✓ ${numCabs} cabinets placed on floor`);
+    console.log(`✓ ${NUM_CABS} cabinets placed (alongZ=${alongZ})`);
   } else {
     console.warn('⚠ "floor" mesh not found');
   }
