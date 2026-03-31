@@ -143,7 +143,7 @@ loader.load('./models/16.glb', (gltf) => {
     const NUM_CABS = 6;
     const cabW = floorSz.z / NUM_CABS;   // each cabinet width along Z
     const cabH = wSz.y    * 0.28;        // 28% of room height (shorter)
-    const cabD = floorSz.x * 0.28;       // 28% of floor X depth (against wall)
+    const cabD = floorSz.x;               // full floor X depth
 
     const startZ  = fb.min.z + cabW / 2;
     const wallX   = fb.min.x + cabD / 2;
